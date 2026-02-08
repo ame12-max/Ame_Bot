@@ -1,0 +1,19 @@
+{
+  "name": "ame_bot",
+  "version": "1.0.0",
+  "main": "index.js",
+"scripts": {
+  "start": "node index.js"
+},
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "dotenv": "^17.2.4",
+    "express": "^5.2.1",
+    "fs": "^0.0.1-security",
+    "node-telegram-bot-api": "^0.67.0",
+    "path": "^0.12.7"
+  }
+}
