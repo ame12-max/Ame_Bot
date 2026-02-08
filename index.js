@@ -95,7 +95,7 @@ bot.on("callback_query", async (query) => {
 
       keyboard.push([{ text: "🏠 Menu", callback_data: "menu" }]);
 
-      await bot.sendMessage(chatId, `📖 Year: ${year}\nSelect Material Type:`, {
+      await bot.sendMessage(chatId, `📖 Year: ${year}\nSelect Semister:`, {
         reply_markup: { inline_keyboard: keyboard }
       });
     }
@@ -117,7 +117,7 @@ bot.on("callback_query", async (query) => {
         { text: "🏠 Menu", callback_data: "menu" }
       ]);
 
-      await bot.sendMessage(chatId, `📂 Select Course:`, {
+      await bot.sendMessage(chatId, `📂 Select Material Type:`, {
         reply_markup: { inline_keyboard: keyboard }
       });
     }
@@ -137,7 +137,7 @@ bot.on("callback_query", async (query) => {
           { text: "⬅ Back", callback_data: `category|${year}|${category}` },
           { text: "🏠 Menu", callback_data: "menu" }
         ]);
-        return await bot.sendMessage(chatId, `📂 Select Type:`, {
+        return await bot.sendMessage(chatId, `📂 Select Course:`, {
           reply_markup: { inline_keyboard: keyboard }
         });
       }
