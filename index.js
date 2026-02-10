@@ -22,7 +22,9 @@ if (isProduction) {
     bot.processUpdate(req.body);
     res.sendStatus(200);
   });
-  app.listen(process.env.PORT || 3000, () => console.log("Server running (Webhook)"));
+  app.listen(process.env.PORT || 3000, () =>
+    console.log("Server running (Webhook)"),
+  );
 } else {
   // Polling for local dev
   bot = new TelegramBot(token, { polling: true });
@@ -33,9 +35,9 @@ if (isProduction) {
 
 function safeGetFolders(dirPath) {
   try {
-    return fs.readdirSync(dirPath).filter(file =>
-      fs.statSync(path.join(dirPath, file)).isDirectory()
-    );
+    return fs
+      .readdirSync(dirPath)
+      .filter((file) => fs.statSync(path.join(dirPath, file)).isDirectory());
   } catch (err) {
     return [];
   }
@@ -43,9 +45,9 @@ function safeGetFolders(dirPath) {
 
 function safeGetFiles(dirPath) {
   try {
-    return fs.readdirSync(dirPath).filter(file =>
-      fs.statSync(path.join(dirPath, file)).isFile()
-    );
+    return fs
+      .readdirSync(dirPath)
+      .filter((file) => fs.statSync(path.join(dirPath, file)).isFile());
   } catch (err) {
     return [];
   }
@@ -57,14 +59,24 @@ bot.onText(/\/start/, async (msg) => {
   try {
     const years = safeGetFolders(BASE_PATH);
 
-    if (!years.length) return bot.sendMessage(msg.chat.id, "No academic years available.");
+    if (!years.length)
+      return bot.sendMessage(msg.chat.id, "No academic years available.");
 
-    const keyboard = years.map(year => [
-      { text: year.replace("_", " "), callback_data: `year|${year}` }
+    const keyboard = courses.map((course, index) => [
+      { text: course, callback_data: `subcourse|${index}` },
     ]);
 
+    // Store mapping temporarily
+    bot.courseCache = bot.courseCache || {};
+    bot.courseCache[chatId] = {
+      year,
+      semester,
+      category,
+      courses,
+    };
+
     await bot.sendMessage(msg.chat.id, "📚 Select Academic Year:", {
-      reply_markup: { inline_keyboard: keyboard }
+      reply_markup: { inline_keyboard: keyboard },
     });
   } catch (err) {
     console.error(err);
@@ -87,16 +99,17 @@ bot.on("callback_query", async (query) => {
       const yearPath = path.join(BASE_PATH, year);
       const categories = safeGetFolders(yearPath);
 
-      if (!categories.length) return bot.sendMessage(chatId, "No materials found.");
+      if (!categories.length)
+        return bot.sendMessage(chatId, "No materials found.");
 
-      const keyboard = categories.map(cat => [
-        { text: cat.toUpperCase(), callback_data: `category|${year}|${cat}` }
+      const keyboard = categories.map((cat) => [
+        { text: cat.toUpperCase(), callback_data: `category|${year}|${cat}` },
       ]);
 
       keyboard.push([{ text: "🏠 Menu", callback_data: "menu" }]);
 
       await bot.sendMessage(chatId, `📖 Year: ${year}\nSelect Semister:`, {
-        reply_markup: { inline_keyboard: keyboard }
+        reply_markup: { inline_keyboard: keyboard },
       });
     }
 
@@ -106,19 +119,20 @@ bot.on("callback_query", async (query) => {
       const categoryPath = path.join(BASE_PATH, year, category);
       const courses = safeGetFolders(categoryPath);
 
-      if (!courses.length) return bot.sendMessage(chatId, "No courses available.");
+      if (!courses.length)
+        return bot.sendMessage(chatId, "No courses available.");
 
-      const keyboard = courses.map(course => [
-        { text: course, callback_data: `course|${year}|${category}|${course}` }
+      const keyboard = courses.map((course) => [
+        { text: course, callback_data: `course|${year}|${category}|${course}` },
       ]);
 
       keyboard.push([
         { text: "⬅ Back", callback_data: `year|${year}` },
-        { text: "🏠 Menu", callback_data: "menu" }
+        { text: "🏠 Menu", callback_data: "menu" },
       ]);
 
       await bot.sendMessage(chatId, `📂 Select Material Type:`, {
-        reply_markup: { inline_keyboard: keyboard }
+        reply_markup: { inline_keyboard: keyboard },
       });
     }
 
@@ -130,15 +144,18 @@ bot.on("callback_query", async (query) => {
 
       // If there are subfolders (like mid/final in exams), show them first
       if (subfolders.length) {
-        const keyboard = subfolders.map(sub => [
-          { text: sub, callback_data: `subcourse|${year}|${category}|${course}|${sub}` }
+        const keyboard = subfolders.map((sub) => [
+          {
+            text: sub,
+            callback_data: `subcourse|${year}|${category}|${course}|${sub}`,
+          },
         ]);
         keyboard.push([
           { text: "⬅ Back", callback_data: `category|${year}|${category}` },
-          { text: "🏠 Menu", callback_data: "menu" }
+          { text: "🏠 Menu", callback_data: "menu" },
         ]);
         return await bot.sendMessage(chatId, `📂 Select Course:`, {
-          reply_markup: { inline_keyboard: keyboard }
+          reply_markup: { inline_keyboard: keyboard },
         });
       }
 
@@ -148,41 +165,52 @@ bot.on("callback_query", async (query) => {
       const keyboard = [
         [
           { text: "⬅ Back", callback_data: `category|${year}|${category}` },
-          { text: "🏠 Menu", callback_data: "menu" }
-        ]
+          { text: "🏠 Menu", callback_data: "menu" },
+        ],
       ];
       await bot.sendMessage(chatId, "✅ Done! Choose an option:", {
-        reply_markup: { inline_keyboard: keyboard }
+        reply_markup: { inline_keyboard: keyboard },
       });
     }
 
     // ---------- SUBCOURSE ----------
     else if (type === "subcourse") {
-      const [_, year, category, course, sub] = parts;
+      const index = parts[1];
+      const cache = bot.courseCache[chatId];
+
+      if (!cache)
+        return bot.sendMessage(chatId, "Session expired. Please start again.");
+
+      const { year, semester, category, courses } = cache;
+      const course = courses[index];
       const subPath = path.join(BASE_PATH, year, category, course, sub);
 
       await sendFilesFromFolder(chatId, subPath, category);
 
       const keyboard = [
         [
-          { text: "⬅ Back", callback_data: `course|${year}|${category}|${course}` },
-          { text: "🏠 Menu", callback_data: "menu" }
-        ]
+          {
+            text: "⬅ Back",
+            callback_data: `course|${year}|${category}|${course}`,
+          },
+          { text: "🏠 Menu", callback_data: "menu" },
+        ],
       ];
       await bot.sendMessage(chatId, "✅ Done! Choose an option:", {
-        reply_markup: { inline_keyboard: keyboard }
+        reply_markup: { inline_keyboard: keyboard },
       });
     }
 
     // ---------- MENU ----------
     else if (type === "menu") {
       const years = safeGetFolders(BASE_PATH);
-      if (!years.length) return bot.sendMessage(chatId, "No academic years available.");
-      const keyboard = years.map(year => [
-        { text: year.replace("_", " "), callback_data: `year|${year}` }
+      if (!years.length)
+        return bot.sendMessage(chatId, "No academic years available.");
+      const keyboard = years.map((year) => [
+        { text: year.replace("_", " "), callback_data: `year|${year}` },
       ]);
       await bot.sendMessage(chatId, "🏠 Main Menu - Select Academic Year:", {
-        reply_markup: { inline_keyboard: keyboard }
+        reply_markup: { inline_keyboard: keyboard },
       });
     }
 
@@ -231,5 +259,9 @@ bot.on("message", (msg) => {
 });
 
 // ---------- GLOBAL ERROR HANDLING ----------
-process.on("uncaughtException", (err) => console.error("Uncaught Exception:", err));
-process.on("unhandledRejection", (err) => console.error("Unhandled Rejection:", err));
+process.on("uncaughtException", (err) =>
+  console.error("Uncaught Exception:", err),
+);
+process.on("unhandledRejection", (err) =>
+  console.error("Unhandled Rejection:", err),
+);
